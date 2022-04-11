@@ -11,6 +11,8 @@ from treegraph.node import GraphNode, NodeAttr
 
 from treegraph.tesserae.graphtabwidget import GraphTabWidget
 
+from treegraph.plugin import registerNode, registerNodeDelegate
+
 
 def setStyleFile(widget, filePath=r"../ui/style/dark/stylesheet.qss"):
 	stylePath = filePath
@@ -132,6 +134,9 @@ class TesseraeWidget(QtWidgets.QWidget):
 	def serialiseGraph(self, graph:Graph):
 		"""return serialised dict for the given graph"""
 		return graph.serialise()
+
+	def registerNodes(self):
+		"""really not sure if this should go on the widget"""
 
 	def startup(self):
 		graph = self.addRootGraph(Graph("newGraph"))

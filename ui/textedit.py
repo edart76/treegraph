@@ -5,8 +5,11 @@ import traceback, ast
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-from treegraph.ui.lib import KeyState, keyDict, returnLines, pyInterpLines
+from tree.ui.lib import KeyState, keyDict
+
+from treegraph.lib.text import  returnLines, pyInterpLines
 from treegraph.ui.highlighter import PythonHighlighter
+
 
 class LineNumberArea(QtWidgets.QWidget):
 	""""""

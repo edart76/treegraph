@@ -1,10 +1,13 @@
 # base machinery for all visual nodes
 from  __future__ import annotations
-from tree import TreeWidget
 
 from typing import List, Dict
-
 from PySide2 import QtCore, QtWidgets, QtGui
+
+from tree import TreeWidget
+from tree.ui.lib import AllEventEater
+
+
 from treegraph.node import GraphNode
 #from edRig.tesserae.action import Action
 from treegraph.ui import tilewidget
@@ -13,8 +16,6 @@ from treegraph.ui.style import *
 from treegraph.ui.constant import nameBarHeight, settingsPadding
 from treegraph.ui.delegate.attr import AttrDelegate
 from treegraph.ui.delegate.knob import Knob
-
-from treegraph.ui.lib import AllEventEater
 
 """
 events are gathered from QGraphicsScene and view, 

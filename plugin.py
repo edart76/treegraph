@@ -5,7 +5,9 @@ specific node types are registered against graph object classes?
 allowing for different nodes in different graph contexts?
 
 """
+import sys, os
 import typing as T
+from pathlib import Path, PurePath
 
 from treegraph.node import GraphNode
 from treegraph.graph import Graph
@@ -18,6 +20,28 @@ def registerNode(nodeCls:T.Type[GraphNode],
                  graphCls:T.Type[Graph]=Graph):
 	"""registers node class, adds it to list of registered nodes"""
 	graphCls.registerNodeClasses([nodeCls])
+
+
+
+
+def scanNodeDirs(nodeDirs:T.List[PurePath], validBaseClasses=(GraphNode, )):
+	"""scan through all modules in nodeDirs recursively, checking for
+	objects inheriting from validBaseClasses
+	return resulting list of objects
+	nameclashes are not handled - for now Tesserae nodes must have globally
+	unique class names
+	"""
+	nodeClasses = {}
+	for nodeDir in nodeDirs:
+		for root, dirs, files in os.walk(nodeDir):
+			for dirFile in files:
+				if not dirFile.endswith(".py"):
+					continue
+				filePath = Path(root) / dirFile
+
+
+
+
 
 def registerNodeDelegate(nodeCls:T.Type[GraphNode],
                          delegateCls:T.Type[NodeDelegate],

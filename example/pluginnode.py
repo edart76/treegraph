@@ -28,3 +28,5 @@ defaultNodes = [
 for i in defaultNodes:
 	registerNode(i)
 
+dynamicCls = type("GenNode", (IntNode, GraphNode), {})
+

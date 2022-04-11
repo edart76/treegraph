@@ -7,6 +7,7 @@ import pprint
 from PySide2 import QtCore, QtWidgets, QtGui
 
 from tree import Tree
+from tree.ui.lib import ContextMenu, KeyState, PartialAction
 
 from treegraph.ui.scene import GraphScene
 #from edRig.tesserae.abstractgraph import Graph
@@ -17,7 +18,7 @@ from treegraph.ui.delegate.node import NodeDelegate
 from treegraph.ui.delegate.knob import Knob
 from treegraph.ui.delegate.edge import EdgeDelegate
 from treegraph.ui.style import *
-from treegraph.ui.lib import ContextMenu, KeyState, PartialAction
+
 # from edRig.structures import ActionItem, ActionList
 
 #from edRig import pipeline
