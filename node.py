@@ -6,13 +6,17 @@ tree structure may eventually be based on graph
 
 
 from __future__ import annotations
-from typing import Union, TYPE_CHECKING, Set, Callable
+
+import typing
+from typing import Union, TYPE_CHECKING, Set, Callable, Type
 from enum import Enum
 from functools import partial
 
 from tree import Tree, Signal
 
 from treegraph.base import GraphNodeBase
+from treegraph.constant import NodeState
+from treegraph.datatype import DataTypes
 from treegraph.attr import NodeAttr
 
 if TYPE_CHECKING:
@@ -39,27 +43,25 @@ class GraphNode(Tree, GraphNodeBase,
 	realClass = None
 	branchesInheritType = False
 
+	# attach datatypes as class attribute
+	DataTypes = DataTypes
 
-	class State(Enum):
-		neutral = "neutral"
-		executing = "executing"
-		complete = "complete"
-		failed = "failed"
-		approved = "approved"
+	State = NodeState
 
 
-	@classmethod
-	def nodeType(cls):
-		"""for use in managing instantiation"""
-		return cls.__name__
+	# physical coords of node in graph
+	position = Tree.TreePropertyDescriptor("position", default=[0, 0])
+	# execution state of node / graph
+	state = Tree.TreePropertyDescriptor("state", default=NodeState.neutral)
+	# is this node currently selected
+	selected = Tree.TreePropertyDescriptor("selected", default=False)
 
-	@classmethod
-	def setRealClass(cls, realClass):
-		cls.realClass = realClass
+
 
 	def __init__(self, name=None, graph=None,
 	             uid=None):
-		"""this is where the spaghetti begins"""
+		"""say no to spaghett
+		"""
 		super(GraphNode, self).__init__(name=name, treeUid=uid)
 
 		self.state = self.State.neutral
@@ -75,7 +77,7 @@ class GraphNode(Tree, GraphNodeBase,
 
 		# set signal breakpoints at settings and attr roots
 		for i in (self.inputRoot, self.outputRoot, self.settings):
-			i.setBreakTags({"attr"})
+			i.setBreakTags( {"main"} )
 			i.setReceivesSignals(True)
 
 
@@ -90,25 +92,17 @@ class GraphNode(Tree, GraphNodeBase,
 
 		"""right click actions for ui
 		left as a tree to allow custom structuring when wanted"""
-		self.actions = Tree(name="actions") #type:Tree[str, partial]
-
-		# ui stuff
-		self.pos = [0,0]
-		self.ui = None # reference to UI tile for this node
+		self.baseActionTree = Tree(name="actions") #type:Tree[str, partial]
 
 		# user override methods
 		self.defineSettings()
 		self.defineAttrs()
 
-		pass
 
 	@property
 	def graph(self)->Graph:
 		""""""
 		return self.parent
-	@graph.setter
-	def graph(self, val:Graph):
-		self._graph = val
 
 	@property
 	def inputRoot(self)->NodeAttr:
@@ -220,63 +214,64 @@ class GraphNode(Tree, GraphNodeBase,
 		"""define the settings tree of a node, if needed"""
 		pass
 
+	def preExecution(self):
+		"""run before execution"""
+		self.setState(self.State.executing)
+		pass
+
 	def execute(self):
-		"""define execution of a node if needed"""
+		"""define execution of a node
+		override in subclasses"""
+		pass
+
+	def postExecution(self, excType:Type[Exception]=None, excVal=None, excTb=None):
+		"""run after execution - passed the same exit arguments
+		as context manager __exit__"""
+		if excType:
+			self.setState(self.State.failed)
+			return
+		self.setState(self.State.complete)
 		pass
 
 
 	# region execution
 	def executionStages(self):
-		"""returns a list supplied by real component of stages of execution"""
-		if not self.real:
-			return []
-		return self.real.execStageNames()
+		"""defining multiple execution stages -
+		for now only 1 is used"""
+		return {
+			"main" : (self.preExecution, self.execute, self.postExecution)
+		}
 
-	def executionFunctions(self):
-		"""returns the execution dict of real component"""
-		return self.real.execFuncs()
+	def execStage(self, stageIndex=0):
+		"""handle pre-, main and post-execution functions on given stage"""
+		key = tuple(self.executionStages().keys())[stageIndex]
+		execFunctions = self.executionStages()[key]
 
-	def getExecFunction(self, index, variant="onExec"):
-		"""retrieves specific function"""
-		self.log("execIndex is {}".format(index))
-		stageName = self.executionStages()[index]
-		func = self.executionFunctions()[stageName]
-		return func
+		errorType, errorVal, errorTb = None, None, None
+		preResult = execFunctions[0]()
+		try:
+			mainResult = execFunctions[1]()
+		except Exception as e:
+			errorType = e
+		postResult = execFunctions[2](errorType, errorVal, errorTb)
 
-	def execute(self, index):
-		"""builds a single stage of the real component's execution order
-		ATOMIC - CALLED BY EXEC TO STAGE"""
-		# test
-		func = self.getExecFunction(index)
-		with self.real.executionManager(): # real-level
-			return func(self.real)
+	def execToStage(self, stageIndex=0):
+		endIndex = stageIndex if stageIndex > -1 else (len(self.executionStages()) + stageIndex)
+		for i in range(endIndex):
+			self.execStage(i)
+
+
+
+
 
 	def propagateOutputs(self):
 		"""references the value of every output to that of every connected input"""
 		for i in self.outEdges:
 			i.dest[1].value = i.source[1].value
-		if hasattr(self.real, "propagateOutputs"):
-			self.real.propagateOutputs()
-
-	def beforeExecute(self):
-		"""use to update state?"""
-		self.setState("executing") # neutral, executing, complete, failed, approved
-		pass
-
-	def afterExecute(self, success=True):
-		"""used to update state, propagate outputs, etc"""
-		if success:
-			self.setState("complete")
-		else:
-			self.setState("failed")
-		self.propagateOutputs()
-
 
 	def reset(self):
 		if self.state != self.State.neutral:
-			if self.real:
-				self.real.reset()
-		self.setState(self.State.neutral)
+			self.setState(self.State.neutral)
 	#endregion
 
 	# ATTRIBUTES
@@ -299,8 +294,9 @@ class GraphNode(Tree, GraphNodeBase,
 		                         default=None, desc=desc)
 		return newAttr
 
-	def addOutput(self, parent:NodeAttr=None, name:str=None,
+	def addOutput(self, name:str,
 	             dataType=None, desc="", isArray=False,
+	              parent: NodeAttr = None,
 	             allowMultipleConnections=False,
 	              *args, **kwargs):
 		parent = parent or self.outputRoot
@@ -308,7 +304,6 @@ class GraphNode(Tree, GraphNodeBase,
 		                    desc=desc, #default=default,
 		                    #attrItem=attrItem,
 		                      *args, **kwargs)
-		self.attrsChanged()
 		return result
 
 
@@ -384,44 +379,16 @@ class GraphNode(Tree, GraphNodeBase,
 	def getConnectedSets(self):
 		return self.graph.getSetsFromNode(self)
 
-	def getAllActions(self)->Tree[Action]:
-		actionTree = mergeActionTrees(
-			[self.actions, self.real.getAllActions()])
-		return actionTree
-
-	def getRealActions(self):
-		return self.real.getAllActions()
-
-	def addAction(self, action:Union[Callable, function, Action]=None,
-	              name=""):
-		if isinstance(action, Callable):
-			action = Action(action)
-		name = name or action.name
-		if self.actions.get(name):
-			self.actions[name].addAction(action)
-		else:
-			self.actions[name or action.name] = action
+	# actions
+	def getActions(self)->Tree:
+		"""return actions to display for this node
+		when right-clicked
+		only show up when selected
+		"""
+		return self.baseActionTree
 
 
-	def getExecActions(self):
-		"""this is kind of a mess - allows executing specific nodes to specific
-		stages - although we currently only use one"""
-		actions = []
-		for i, val in enumerate(self.executionStages()):
-			#actionDict = {"func" : self.execToStage, "args" : [i]}
-			#actions.update({val : ActionItem(name=val, execDict=actionDict)})
-			action = Action(self.execToStage, name=val, args=[i])
-			actions.append(action)
-		return actions
-
-	def recastReal(self):
-		"""for use in developing real components live - replaces class of real component
-		with current version"""
-		newReal = self.real.fromDict(self.real.serialise())
-		self.setRealInstance(newReal, define=False)
-		self.sync()
-
-
+	# io
 	def serialise(self, includeAddress=False):
 		"""converts node and everything it contains to dict"""
 		serial = {

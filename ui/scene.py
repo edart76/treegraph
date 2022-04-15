@@ -73,6 +73,8 @@ class GraphScene(QtWidgets.QGraphicsScene):
 		self.graph.structureChanged.connect(self.onNodesChanged)
 		self.graph.edgesChanged.connect(self.onEdgesChanged)
 
+		self.selectionChanged.connect(self.onSceneSelectionChanged)
+
 		# temp
 		self.mouseMoveCounter = 0
 
@@ -134,10 +136,11 @@ class GraphScene(QtWidgets.QGraphicsScene):
 	def delegateForNode(cls, node:GraphNode):
 		"""look up the nearest matching delegate for
 		given node"""
-		for i in [type(node), *type(node).__bases__]:
+		for i in [type(node), *type(node).__mro__]:
 			if i in cls.delegateMap:
 				return cls.delegateMap[i]
-		raise RuntimeError("No drawing delegate found for ")
+		raise RuntimeError("No drawing delegate found for {} or in {}".format(
+			type(node), type(node).__mro__	))
 
 	def makeTile(self, abstract:GraphNode=None,
 	             pos:Union[
@@ -210,6 +213,12 @@ class GraphScene(QtWidgets.QGraphicsScene):
 
 	# def clearSelectionAttr(self):
 	# 	"""clears "selected" attr for tiles and pipes that are not selected"""
+
+	def onSceneSelectionChanged(self, *args, **kwargs):
+		"""passed no arguments, just fires every change
+		iterate through nodes - call the selected signal on each"""
+		for i in self.tiles.values():
+			i.onSceneSelectionChanged()
 
 	def onDeleteCalled(self):
 		"""delete selected tiles and pipes"""

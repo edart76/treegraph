@@ -33,7 +33,7 @@ class NodeBaseWidget(QtWidgets.QGraphicsProxyWidget):
 
 	def keyPressEvent(self, event:QtGui.QKeyEvent) -> None:
 		"""accept any events passed to node widgets,
-		prevent them propagating back to other classes"""
+		prevent them propagating back to other classesToReload"""
 		#print("proxy keypress event", event.key())
 		#self.widget.keyPressEvent(event)
 		event.accept()

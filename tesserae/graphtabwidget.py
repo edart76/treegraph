@@ -70,13 +70,17 @@ class GraphTabWidget(QtWidgets.QTabWidget):
 		"""return map of {name : graph view widget}
 		for each open graph tab of this window"""
 		nameMap = {}
-		try:
-			for i in range(self.tabWidget.count()):
-				graphView = self.tabWidget.widget(i) #type:GraphView
-				nameMap[graphView.graph.uuid] = graphView
-			return nameMap
-		except:
+		if self.count() == 0:
 			return None
+		#try:
+		for i in range(self.count()):
+			graphView = self.widget(i) #type:GraphView
+			if not isinstance(graphView, GraphView):
+				continue
+			nameMap[graphView.graph.uid] = graphView
+		return nameMap
+		# except:
+		# 	return None
 
 	@property
 	def currentGraph(self)->Graph:

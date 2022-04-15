@@ -35,6 +35,7 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 	 sync used to start over entirely
 
 	 """
+
 	def __init__(self, parent=None, abstractNode:GraphNode=None,
 	             ):
 		super(NodeDelegate, self).__init__(parent)
@@ -66,7 +67,7 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 		self.actions = {}
 
 		# set reference to this tile on abstractNode???????
-		self.node.ui = self
+		#self.node.ui = self
 
 		# appearance
 		#self.width, self.height = self.getSize()
@@ -90,8 +91,8 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 		return self.boundingRect().height()
 
 	def makeConnections(self):
-		self.node.nameChanged.connect(self.onNodeNameChange)
-		self.nameTag.valueChanged.connect(self._onNameTagChange)
+		self.node.nameChanged.connect(self.onNodeNameChanged)
+		self.nameTag.valueChanged.connect(self._onNameTagChanged)
 
 	@property
 	def entries(self)->Dict[str, AttrDelegate]:
@@ -137,12 +138,22 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 		return super(NodeDelegate, self).dragMoveEvent(event)
 
 
-	def _onNameTagChange(self, widget, name):
+	def _onNameTagChanged(self, widget, name):
+		"""updates from ui"""
 		self.node.setName(name)
 
-	def onNodeNameChange(self, branch, newName, oldName):
+	def onNodeNameChanged(self, branch, newName, oldName):
+		"""updates from python"""
 		self.nameTag.value = newName
 
+	def onSceneSelectionChanged(self):
+		"""called externally whenever scene selection changes
+		update state of python node"""
+		self.node.selected = self.isSelected()
+
+	def onPythonSelectionChanged(self, state=None):
+		"""update selection state of UI"""
+		self.setSelected(self.node.selected)
 
 	def getSize(self):
 		"""

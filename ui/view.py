@@ -105,7 +105,7 @@ class GraphView(QtWidgets.QGraphicsView):
 		# tab search
 		self.tabSearch = TabSearchWidget(parent=self)
 		# self.tabSearch.setValidStrings(list(self.graph.registeredNodeClasses.keys()))
-		#print("registered classes ", self.graph.registeredNodeClasses.keys())
+		#print("registered classesToReload ", self.graph.registeredNodeClasses.keys())
 
 		# signals
 		self.tabSearch.searchSubmitted.connect(self.onSearchReceived)
@@ -157,28 +157,7 @@ class GraphView(QtWidgets.QGraphicsView):
 			val = val.toPoint()
 		return super(GraphView, self).mapToScene(val)
 
-	def saveToScene(self):
-		"""saves current file path"""
-		currentInfo = pipeline.getSceneData()
 
-		if self.savePath:
-			currentInfo["tesserae.savePath"] = self.savePath
-			currentInfo["tesserae.filePath"] = self.filePath
-			currentInfo["tesserae.asset"] = self.currentAsset.path
-		pipeline.saveSceneData(currentInfo)
-
-	def loadFromScene(self, force=True):
-		""" loads current file path
-		if force, loads entire graph"""
-		info = pipeline.getSceneData()
-
-		if info["tesserae.asset"]:
-			self.graph.setAsset(pipeline.AssetItem(info["tesserae.asset"]))
-		self.savePath = info["tesserae.savePath"]
-		self.filePath = info["tesserae.filePath"]
-		if force and pipeline.checkFileExists(self.filePath):
-			print(("forcing open from scene, self save path is {}".format(self.filePath)))
-			self.openTilePileFile(self.filePath, force=True)
 
 	def _initActions(self):
 		# setup tab search shortcut.
@@ -232,11 +211,13 @@ class GraphView(QtWidgets.QGraphicsView):
 
 
 	def contextMenuEvent(self, event):
-		"""i'm really honestly quite sick of this softlocking my program"""
+		"""we delegate most logic to the graph itself regarding
+		gathering node actions and merging trees"""
 		super(GraphView, self).contextMenuEvent(event)
 		if event.isAccepted():
 			return
-		self.buildContext()
+		self.contextMenu.buildMenusFromTree(self.graph.getActions())
+		#self.buildContext()
 		self.contextMenu.exec_(event.globalPos())
 
 	""" view receives events first - calling super passes them to scene """
@@ -608,7 +589,7 @@ class GraphView(QtWidgets.QGraphicsView):
 	def buildContext(self):
 		"""called on rightclick - gathers all available actions
 		and adds them to default"""
-		return
+		#return
 		self.contextMenu.clearCustomEntries()
 
 		nodeTrees = []

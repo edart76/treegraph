@@ -1,7 +1,7 @@
 import pprint
 
 from PySide2 import QtCore, QtWidgets, QtGui
-
+import typing as T
 from treegraph.glimport import *
 
 from treegraph.ui.view import GraphView
@@ -11,7 +11,7 @@ from treegraph.node import GraphNode, NodeAttr
 
 from treegraph.tesserae.graphtabwidget import GraphTabWidget
 
-from treegraph.plugin import registerNode, registerNodeDelegate
+from treegraph.plugin import registerNodes, registerNodeDelegate
 
 
 def setStyleFile(widget, filePath=r"../ui/style/dark/stylesheet.qss"):
@@ -31,13 +31,15 @@ class TesseraeWidget(QtWidgets.QWidget):
 
 	graphsChanged = QtCore.Signal(dict)
 
+	defaultGraphCls = Graph
+
 	def __init__(self, parent=None):
 		super(TesseraeWidget, self).__init__(parent)
 
 		#self.graphs = WeakValueDictionary() # {uuid : graph }
 
 		self.graphIndex = Tree("tessGraphIndex")
-		topBranch = Graph.globalTree(self.appName, create=True)
+		topBranch = self.defaultGraphCls.globalTree(self.appName, create=True)
 
 		self.setObjectName("tesserae")
 		self.setWindowTitle("tesserae")
@@ -59,6 +61,11 @@ class TesseraeWidget(QtWidgets.QWidget):
 		vl.addWidget(self.tabWidgets[0])
 		vl.setContentsMargins(0, 0, 0, 0)
 		self.setLayout(vl)
+
+	def firstGraph(self):
+		"""returns the first showing graph in ui"""
+		return self.tabWidgets[0].currentGraph
+
 
 	def onRootGraphsChanged(self, *args, **kwargs):
 		"""a change has been made to the structure of available
@@ -138,8 +145,17 @@ class TesseraeWidget(QtWidgets.QWidget):
 	def registerNodes(self):
 		"""really not sure if this should go on the widget"""
 
-	def startup(self):
-		graph = self.addRootGraph(Graph("newGraph"))
+	def startup(self, name, graph=None,
+	            graphCls:T.Type[Graph]=None):
+		"""
+		if specific graph is provided, opens on that
+		graphCls is class of main root graph to show"""
+		if not graph:
+			graphCls = graphCls or self.defaultGraphCls
+			newGraph = graphCls.startup(
+				name="newGraph",
+			)
+			graph = self.addRootGraph(newGraph)
 		self.tabWidgets[0].addGraph(graph)
 
 		#print("start index")

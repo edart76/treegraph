@@ -1,11 +1,11 @@
 
-"""basic node classes registered by default in graph object
+"""basic node classesToReload registered by default in graph object
 IntNode is prototypical example of user-defined node
 plugin registration functions are then called to add these
 nodes into the graph
 """
 from treegraph.node import GraphNode
-from treegraph.plugin import registerNode
+from treegraph.plugin import registerNodes
 
 
 
@@ -21,12 +21,14 @@ class IntNode(GraphNode):
 		self.addOutput(name="value")
 
 
-defaultNodes = [
-	IntNode,
-]
-
-for i in defaultNodes:
-	registerNode(i)
 
 dynamicCls = type("GenNode", (IntNode, GraphNode), {})
+
+defaultNodes = [
+	IntNode, dynamicCls
+]
+
+#for i in defaultNodes:
+registerNodes(defaultNodes)
+
 

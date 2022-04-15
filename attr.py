@@ -8,6 +8,7 @@ import typing as T
 from tree import Tree, Signal, TreeReference
 
 from treegraph.base import GraphNodeBase
+from treegraph.datatype import DataTypes
 from treegraph.edge import GraphEdge
 if T.TYPE_CHECKING:
 	from treegraph.node import GraphNode
@@ -28,18 +29,8 @@ class NodeAttr(Tree):
 
 	sep = "."
 
-	# available plug types
-	class DataTypes(Enum):
-		"""Redefine your own enums in inheriting
-		programs"""
-		Null = auto()
-		Int = auto()
-		Float = auto()
-		String = auto()
-		Dict = auto()
-
 	# override in subclasses
-	attrTypes = DataTypes #type: Enum
+	DataTypes = DataTypes #type: Enum
 
 	# available hierarchy types
 	class NodeAttrHTypes(Enum):

@@ -1,7 +1,7 @@
 
 """
 we take inspiration from Maya and the way it handles user plugin registration
-specific node types are registered against graph object classes?
+specific node types are registered against graph object classesToReload?
 allowing for different nodes in different graph contexts?
 
 """
@@ -16,10 +16,10 @@ from treegraph.ui.scene import GraphScene
 from treegraph.ui.delegate import NodeDelegate
 
 
-def registerNode(nodeCls:T.Type[GraphNode],
+def registerNodes(nodeClasses:T.Set[type],
                  graphCls:T.Type[Graph]=Graph):
 	"""registers node class, adds it to list of registered nodes"""
-	graphCls.registerNodeClasses([nodeCls])
+	graphCls.registerNodeClasses(nodeClasses)
 
 
 

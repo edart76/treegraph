@@ -10,14 +10,12 @@ import typing as Ty
 
 from functools import partial
 
-import pprint
+import pprint, inspect, itertools
 from weakref import WeakSet, WeakValueDictionary
 from collections import defaultdict
 from functools import partial
 from enum import Enum
 
-import itertools
-from importlib import reload
 from tree import Tree, Signal
 
 from treegraph.node import GraphNode
@@ -29,6 +27,10 @@ from treegraph.exepath import ExecutionPath
 
 
 #from treegraph.plugin import defaultNodes
+
+from treegraph.catalogue import ClassCatalogue
+
+from treegraph.functionset import GraphFunctionSet
 
 class Graph(
 	#Tree
@@ -64,10 +66,21 @@ class Graph(
 	# not to be used for node names
 	reservedKeys = ["nodeGroups", "nodeMemory", "edges"]
 
-	# default node classes to register
-	nodeClasses = []
+	# default node classesToReload to register
+	#nodeClasses = []
 
-	registeredNodeClasses = {} # type: T.Dict[str, T.Type[GraphNode]]
+	#registeredNodeClasses = {} # type: T.Dict[str, T.Type[GraphNode]]
+
+	# ONE NODE CATALOGUE PER GRAPH CLASS
+	# could do it per-instance, but we will not
+	classCatalogue = ClassCatalogue(classPackagePaths=[],
+	                                  baseClasses={GraphNode})
+
+	#functionset = GraphFunctionSet()
+
+	functionSetCls = GraphFunctionSet
+	functionSet: GraphFunctionSet = Tree.TreePropertyDescriptor(
+		key="functionSet", default=None, inherited=True)
 
 	def __init__(self,
 	             name="main",
@@ -80,19 +93,16 @@ class Graph(
 			return WeakSet()
 		self.attrEdgeMap = defaultdict(_edgeItemFactory) #type: Dict[NodeAttr, Set[GraphEdge]]
 
-		self.selectedNodes = []
-		#self.nodeSets = {} #type: Dict[str, NodeSet]
+		#self.selectedNodes = []
 		self.setProperty("nodeSets", {})
 		self.setProperty("edges", set())
 
 		self.transforms = {} # map of node
-		self.initGraph()
 
 
 		# signals
 		# edgesChanged signature : edge object, event type
 		self.edgesChanged = Signal()
-		# self.nodeChanged = Signal()
 		self.nodeChanged = self.structureChanged
 		# nodeSetsChanged signature : node set, event type
 		self.nodeSetsChanged = Signal()
@@ -120,7 +130,7 @@ class Graph(
 			subgraphs.extend(i.allSubGraphs())
 		return subgraphs
 
-	# serialised special graph attributes
+	# graph attributes
 	@property
 	def nodeMemory(self):
 		return self("nodeMemory")
@@ -134,22 +144,25 @@ class Graph(
 	@property
 	def edges(self)->Set[GraphEdge]:
 		return self.getProperty("edges")
-	# @edges.setter
-	# def edges(self, val:Set[GraphEdge]):
-	# 	self["edges"] = val
 
 	@property
 	def nodeSets(self)->Dict[str, NodeSet]:
 		return self.getProperty("nodeSets")
-	# @nodeSets.setter
-	# def nodeSets(self, val):
-	# 	self["nodeSets"] = val
 
 	@property
 	def nodes(self)->List[GraphNode]:
-		"""excludes child graphs"""
-		return [i for i in self.branches #if isinstance(i, GraphNode)
+		"""DOES NOT exclude child graphs"""
+		return [i for i in self.branches if isinstance(i, GraphNode)
 		        ]
+
+	@property
+	def subGraphs(self)->List[Graph]:
+		"""return all direct branches that are graphs in their own right"""
+		return [i for i in self.branches is isinstance(i, Graph)]
+
+	@property
+	def nonGraphNodes(self)->Set[GraphNode]:
+		return set(self.nodes) - set(self.subGraphs)
 
 	@property
 	def nodeMap(self)->Dict[str, GraphNode]:
@@ -184,19 +197,23 @@ class Graph(
 		"""in case signal hierarchy is needed -
 		avoid this if possible"""
 
+	#region node class processing
+	@property
+	def registeredNodeClasses(self)->Dict[str, type]:
+		"""dict of { class name, class object } for nodes"""
+		return {i.__name__ : i for i in  self.classCatalogue.classes}
 
 	@classmethod
 	def registerNodeClasses(cls,
-	                        toRegister:T.List[T.Type[GraphNode]]=None):
-		"""generates node class for each known real class"""
-		toRegister = toRegister or cls.nodeClasses
-		for i in toRegister:
-			cls.registeredNodeClasses[i.__name__] = i
-
+	                        toRegister:T.List[T.Type[GraphNode]]):
+		"""updates class catalogue with given classes"""
+		cls.classCatalogue.registerClasses(toRegister)
 
 	@property
 	def registeredClassNames(self):
-		return [i for i in list(self.registeredNodeClasses.keys())]
+		return list(self.registeredNodeClasses.keys())
+
+	# endregion
 
 	@property
 	def knownUIDs(self):
@@ -216,8 +233,8 @@ class Graph(
 
 		if not nodeType in self.registeredClassNames:
 			raise RuntimeError("nodeType "+nodeType+" not registered in graph")
-		newAbsClass = self.registeredNodeClasses[nodeType]
-		newInstance = newAbsClass(name=name or newAbsClass.__name__,
+		nodeClass = self.registeredNodeClasses[nodeType]
+		newInstance = nodeClass(name=name or nodeClass.__name__,
 		                          )
 		if add:
 			self.addNode(newInstance)
@@ -604,14 +621,13 @@ class Graph(
 		cell("data")
 
 		return cell
-
-
-	def initGraph(self):
-		"""override for specific implementations"""
-		self.registerNodeClasses([])
-		self.registeredClassNames
-
 	# endregion
+
+	#region ui integration
+	def selectedNodes(self)->T.List[GraphNode]:
+		return [i for i in self.nodes if i.selected]
+
+	#endregion
 
 	# region serialisation and regeneration
 	def serialise(self):
@@ -655,10 +671,15 @@ class Graph(
 	# endregion
 
 	### initial startup when tesserae is run for the first time
-	#@staticmethod
 	@classmethod
-	def startup(cls, name="main"):
+	def startup(cls, name="main")->Graph:
 		"""returns a fresh graph object"""
 		# do other stuff if necessary
-		return cls(name=name)
+		graph = cls(name=name)
+
+		# initialise function set
+		graph.functionSet = graph.functionSetCls(rootGraph=graph)
+
+		return graph
+
 

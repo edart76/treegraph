@@ -4,7 +4,7 @@ import typing as T
 from functools import partial
 from enum import Enum
 
-from tree import Signal
+from tree import Signal, Tree
 
 from treegraph.node import GraphNode
 from treegraph.attr import NodeAttr
@@ -15,6 +15,8 @@ from treegraph.graph import Graph
 # should probably have its functions moved to a lib
 from treegraph.exepath import ExecutionPath
 
+# we share the state enum between nodes and graphs
+# makes sense since graphs are nodes
 
 class GraphExecutionManager(object):
 	"""manages context for entire execution process"""
@@ -24,37 +26,22 @@ class GraphExecutionManager(object):
 
 	def __enter__(self):
 		"""set graph state"""
-		self.graph.setState("executing")
+		self.graph.setState(Graph.State.executing)
 		return self
 
 	def __exit__(self, exc_type, exc_val, exc_tb):
 		"""reset graph state"""
 		if exc_type:
-			self.graph.setState("neutral")
-		self.graph.setState("neutral")
+			self.graph.setState(Graph.State.failed)
+		self.graph.setState(Graph.State.neutral)
 
 
 class ExeGraph(Graph):
 	"""Graph with extra fuunctions to handle
 	node execution"""
 
-	class GraphState(Enum):  # graph states
-		neutral = "neutral"
-		executing = "executing",
-		complete = "complete",
-		failed = "failed",
-		approved = "approved"
-
-	states = GraphState._member_names_[:]
-
 	def __init__(self, name="main"):
 		super(ExeGraph, self).__init__(name)
-		self.state = self.GraphState.neutral
-		"""used to check if execution is in progress; prevents any change to topology
-		if it is. states are neutral, executing, (routing, for massive graphs?)"""
-		self.stateChanged = Signal()
-
-
 
 
 	### region node execution ###
@@ -71,26 +58,20 @@ class ExeGraph(Graph):
 		"""executes nodes in given sequence to given index"""
 
 		execPath = self.getExecPath(nodes=nodes)
-		#self.setState("executing")
+		self.setState("executing")
 		# enter graph-level execution state here
 		with GraphExecutionManager(self):
 			for i in execPath.sequence:
-				nodeIndex = index
-				if index == -1: # all steps
-					nodeIndex = len(i.executionStages()) # returns ["plan", "build"] etc
-				# for n in range(nodeIndex):
-				# 	kSuccess = i.execute(index=n)
-				"""currently no support for executing all nodes to stage n before
-				all to n+1"""
+
 				try:
-					kSuccess = i.execToStage(index)
+					kSuccess = i.execStage(0)
 					# enter and exit node-level execution state
 					self.log("all according to kSuccess")
 				except RuntimeError("NOT ACCORDING TO KSUCCESS"):
 					pass
 
 		# exit graph-level execution
-		#self.setState("neutral")
+		self.setState("neutral")
 		self.log("execution complete")
 
 	def resetNodes(self, nodes=None):
@@ -101,7 +82,6 @@ class ExeGraph(Graph):
 			i.reset()
 		"""currently no support for specific order during reset, as in maya there
 		is no need. however, it could be done"""
-		self.sync()
 
 	def reset(self):
 		self.resetNodes(self.nodes)
@@ -121,10 +101,21 @@ class ExeGraph(Graph):
 				self.reset, name="reset all")
 		}
 
-	def setState(self, state:GraphState):
-		"""didn't know this was also a magic method but whatevs"""
-		self.state = state
-		self.stateChanged()
+	def getActions(self) ->Tree:
+		"""gather selected nodes and have option to execute them"""
+		selNodes = self.selectedNodes()
+		execBranch = self.baseActionTree("execute")
+		execBranch("Selected nodes").value = partial(
+			self.executeNodes, nodes=selNodes
+		)
+		execBranch("All nodes").value = partial(
+			self.executeNodes
+		)
+		execBranch("All nodes").description = "rig it like you dig it"
+
+		return self.baseActionTree
+
+
 
 	#endregion
 
