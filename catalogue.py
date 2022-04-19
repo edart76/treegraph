@@ -7,7 +7,7 @@ from collections import namedtuple
 
 from tree.lib.python import safeLoadModule
 from tree import Signal
-from treegraph.lib.python import itersubclasses, iterSubModuleNames
+from treegraph.lib.python import iterSubClasses, iterSubModuleNames
 from treegraph.node import GraphNode
 
 

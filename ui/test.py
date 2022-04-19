@@ -46,7 +46,7 @@ if __name__ == '__main__':
 	from PySide2.QtWidgets import QApplication
 
 	graph = Graph()
-	graph.registerNodeClasses()
+
 
 	app = QApplication(sys.argv)
 	win = QtWidgets.QMainWindow()

@@ -3,7 +3,7 @@
 from enum import Enum
 import typing as T
 from tree.lib.object import ExtensibleEnumLike
-from treegraph.lib.python import itersubclasses
+from treegraph.lib.python import iterSubClasses
 
 
 class DataTypeBase(object):
@@ -13,7 +13,7 @@ class DataTypeBase(object):
 
 	@classmethod
 	def allDataTypes(cls):
-		return list(itersubclasses(cls))
+		return list(iterSubClasses(cls))
 
 class Null(DataTypeBase):
 	pass

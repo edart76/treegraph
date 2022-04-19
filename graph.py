@@ -62,6 +62,12 @@ class Graph(
 		added = "added"
 		removed = "removed"
 
+	class SaveMode(Enum):
+		"""options between saving entire graph to single file,
+		or each graph and node to a separate file in a folder hierarchy"""
+		singleFile = "singleFile"
+		separateFiles = "separateFiles"
+
 	# reserved names for graph components,
 	# not to be used for node names
 	reservedKeys = ["nodeGroups", "nodeMemory", "edges"]

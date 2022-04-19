@@ -7,7 +7,8 @@ import pprint
 from PySide2 import QtCore, QtWidgets, QtGui
 
 from tree import Tree
-from tree.ui.lib import ContextMenu, KeyState, PartialAction
+from tree.ui.lib import KeyState, PartialAction
+from tree.ui import TreeMenu
 
 from treegraph.ui.scene import GraphScene
 #from edRig.tesserae.abstractgraph import Graph
@@ -114,7 +115,7 @@ class GraphView(QtWidgets.QGraphicsView):
 		self._savePath = None
 		self._filePath = None
 
-		self.contextMenu = ContextMenu(self)
+		self.contextMenu = TreeMenu(self)
 
 		self._initActions()
 		
@@ -216,7 +217,8 @@ class GraphView(QtWidgets.QGraphicsView):
 		super(GraphView, self).contextMenuEvent(event)
 		if event.isAccepted():
 			return
-		self.contextMenu.buildMenusFromTree(self.graph.getActions())
+		#self.contextMenu.buildMenusFromTree(self.graph.getActions())
+		self.contextMenu.setTree(self.graph.getActions())
 		#self.buildContext()
 		self.contextMenu.exec_(event.globalPos())
 

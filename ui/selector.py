@@ -4,14 +4,11 @@
 from PySide2 import QtCore, QtWidgets, QtGui
 from tree import Tree
 from tree.ui.widget import TreeWidget
-from tree.ui.delegate import treeObjRole, addressRole
+from tree.ui.constant import treeObjRole, addressRole, relAddressRole
+#from tree.ui.delegate import treeObjRole
 
 class TreeCompleter(QtWidgets.QCompleter):
 
-	# def pathFromIndex(self, index:QtCore.QModelIndex) -> str:
-	# 	addr = index.data(addressRole)
-	# 	print("path", addr)
-	# 	return addr
 	pass
 
 

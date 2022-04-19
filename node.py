@@ -7,10 +7,11 @@ tree structure may eventually be based on graph
 
 from __future__ import annotations
 
-import typing
+
 from typing import Union, TYPE_CHECKING, Set, Callable, Type
 from enum import Enum
 from functools import partial
+from tree.lib.path import Path, PurePath
 
 from tree import Tree, Signal
 
@@ -40,7 +41,6 @@ class GraphNode(Tree, GraphNodeBase,
 	sep = "."
 
 	defaultName = "basicAbstract"
-	realClass = None
 	branchesInheritType = False
 
 	# attach datatypes as class attribute
@@ -74,6 +74,7 @@ class GraphNode(Tree, GraphNodeBase,
 			node=self, dataType=NodeAttr.DataTypes.Null,
 		                              name="output"))
 		self.addChild(Tree("settings"))
+		self("settings").lookupCreate = True
 
 		# set signal breakpoints at settings and attr roots
 		for i in (self.inputRoot, self.outputRoot, self.settings):
@@ -93,6 +94,7 @@ class GraphNode(Tree, GraphNodeBase,
 		"""right click actions for ui
 		left as a tree to allow custom structuring when wanted"""
 		self.baseActionTree = Tree(name="actions") #type:Tree[str, partial]
+		self.baseActionTree.lookupCreate = True
 
 		# user override methods
 		self.defineSettings()
@@ -155,8 +157,9 @@ class GraphNode(Tree, GraphNodeBase,
 		works off uid
 		abstractNodes only have access to data - graph may know more
 		:rtype Tree """
-		data = self.graph.getNodeMemoryCell(self)
-		return data
+		#data = self.graph.getNodeMemoryCell(self)
+		return self("data", create=True)
+		#return data
 
 	def wireSignals(self):
 		"""sets up signal hierarchy"""
@@ -357,17 +360,26 @@ class GraphNode(Tree, GraphNodeBase,
 				self.removeAttr(i, role="input")
 
 	# settings
-	def addSetting(self, parent=None, entryName=None, value=None,
-	               options=None, min=None, max=None):
+	def addSetting(self, settingName, value=None, parent=None, options=None, min=None, max=None):
 		"""add setting entry to abstractTree"""
 		parent = parent or self.settings
-		branch = parent(entryName)
-		if options == bool: options = (True, False)
+		branch = parent(settingName)
+		if options == bool:
+			options = (True, False)
 		extras = {"options" : options,
 		          "min" : min,
 		          "max" : max}
 		branch.extras = {k : v for k, v in extras.items() if v}
 		branch.value = value
+		return branch
+
+	def addBoolSetting(self, name:str, value:bool, parent=None):
+		self.addSetting(settingName=name, value=value, parent=parent)
+
+	def addFilePathSetting(self, name:str, value:Union[str, PurePath]="",
+	                       parent=None):
+		fileBranch = self.addSetting(name, value, parent=parent)
+
 
 	# sets
 	def addToSet(self, setName):
