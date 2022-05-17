@@ -22,8 +22,6 @@ def registerNodes(nodeClasses:T.Set[type],
 	graphCls.registerNodeClasses(nodeClasses)
 
 
-
-
 def scanNodeDirs(nodeDirs:T.List[PurePath], validBaseClasses=(GraphNode, )):
 	"""scan through all modules in nodeDirs recursively, checking for
 	objects inheriting from validBaseClasses
@@ -38,10 +36,6 @@ def scanNodeDirs(nodeDirs:T.List[PurePath], validBaseClasses=(GraphNode, )):
 				if not dirFile.endswith(".py"):
 					continue
 				filePath = Path(root) / dirFile
-
-
-
-
 
 def registerNodeDelegate(nodeCls:T.Type[GraphNode],
                          delegateCls:T.Type[NodeDelegate],

@@ -3,37 +3,43 @@
 tree structure may eventually be based on graph
 """
 
-
-
 from __future__ import annotations
 
 
 from typing import Union, TYPE_CHECKING, Set, Callable, Type
 from enum import Enum
-from functools import partial
+from functools import partial, reduce
 from tree.lib.path import Path, PurePath
+from tree.lib.object import PostInitMixin
 
 from tree import Tree, Signal
+from tree.util import composite
 
 from treegraph.base import GraphNodeBase
 from treegraph.constant import NodeState
 from treegraph.datatype import DataTypes
 from treegraph.attr import NodeAttr
 
+from treegraph.settings import NodeSettings
+
+from tree.lib.constant import AtomicWidgetType, AtomicWidgetSemanticType
+from tree.util.ui import markBranchForUIWidget
+
 if TYPE_CHECKING:
 	from treegraph import Graph, GraphEdge
 
 
 
-class NodeMeta(type):
-	def __call__(cls, *args, **kwargs):
-		ins = super(NodeMeta, cls).__call__(*args, **kwargs)
-		ins.postInit()
-		return ins
+# class NodeMeta(type):
+# 	"""small wrapper to support post-init"""
+# 	def __call__(cls, *args, **kwargs):
+# 		ins = super(NodeMeta, cls).__call__(*args, **kwargs)
+# 		ins.__postInit__()
+# 		return ins
 
 
-class GraphNode(Tree, GraphNodeBase,
-                metaclass=NodeMeta
+class GraphNode( Tree, PostInitMixin,  GraphNodeBase,
+                #metaclass=NodeMeta
                 ):
 	"""node node managed by node graph
 	interfaces with direct operations, and with UI"""
@@ -58,6 +64,7 @@ class GraphNode(Tree, GraphNodeBase,
 
 
 
+
 	def __init__(self, name=None, graph=None,
 	             uid=None):
 		"""say no to spaghett
@@ -73,7 +80,7 @@ class GraphNode(Tree, GraphNodeBase,
 		self.addChild(NodeAttr(
 			node=self, dataType=NodeAttr.DataTypes.Null,
 		                              name="output"))
-		self.addChild(Tree("settings"))
+		self.addChild(NodeSettings("settings"))
 		self("settings").lookupCreate = True
 
 		# set signal breakpoints at settings and attr roots
@@ -87,6 +94,7 @@ class GraphNode(Tree, GraphNodeBase,
 		self.attrValueChanged = Signal() # emit tuple of attrItem, value
 		self.stateChanged = Signal()
 		self.connectionsChanged = Signal()
+		self.settingsChanged = Signal()
 		self.nodeChanged = Signal()
 		self.wireSignals()
 
@@ -106,6 +114,15 @@ class GraphNode(Tree, GraphNodeBase,
 		""""""
 		return self.parent
 
+	def graphSettings(self, inherited=True):
+		"""retrieve settings for this node's parent graph
+		by default it queries all parents up to root, and returns
+		a settings object composited from all of their settings,
+		and any overrides defined at lower levels"""
+		return reduce(lambda x, y: composite.recursiveUnion(x, y, override=True),
+		                [i.settings for i in reversed(self.trunk())])
+
+
 	@property
 	def inputRoot(self)->NodeAttr:
 		return self("input")
@@ -113,7 +130,7 @@ class GraphNode(Tree, GraphNodeBase,
 	def outputRoot(self)->NodeAttr:
 		return self("output")
 	@property
-	def settings(self)->Tree:
+	def settings(self)->NodeSettings:
 		return self("settings")
 
 	@property
@@ -171,6 +188,11 @@ class GraphNode(Tree, GraphNodeBase,
 		self.nodeChanged.connect(self.onNodeChanged)
 		self.stateChanged.connect(self.onStateChanged)
 
+		for i in (self.settings.valueChanged, self.settings.nameChanged, self.settings.structureChanged):
+			i.connect(self.settingsChanged)
+		self.settingsChanged.connect(self.onSettingsChanged)
+
+
 	# signal-fired methods
 	def onNodeChanged(self, *args, **kwargs):
 		pass
@@ -180,6 +202,9 @@ class GraphNode(Tree, GraphNodeBase,
 		pass
 	def onConnectionsChanged(self, *args, **kwargs):
 		pass
+	def onSettingsChanged(self, *args, **kwargs):
+		pass
+
 
 	def initSettings(self):
 		"""putting here as temp, this all needs restructuring"""
@@ -204,7 +229,7 @@ class GraphNode(Tree, GraphNodeBase,
 		self.graph.log(message)
 
 	# region override methods
-	def postInit(self):
+	def __postInit__(self):
 		"""called after any subclassed init is complete"""
 		pass
 
@@ -358,27 +383,6 @@ class GraphNode(Tree, GraphNodeBase,
 		for i in self.inputs:
 			if search in i.name or not search:
 				self.removeAttr(i, role="input")
-
-	# settings
-	def addSetting(self, settingName, value=None, parent=None, options=None, min=None, max=None):
-		"""add setting entry to abstractTree"""
-		parent = parent or self.settings
-		branch = parent(settingName)
-		if options == bool:
-			options = (True, False)
-		extras = {"options" : options,
-		          "min" : min,
-		          "max" : max}
-		branch.extras = {k : v for k, v in extras.items() if v}
-		branch.value = value
-		return branch
-
-	def addBoolSetting(self, name:str, value:bool, parent=None):
-		self.addSetting(settingName=name, value=value, parent=parent)
-
-	def addFilePathSetting(self, name:str, value:Union[str, PurePath]="",
-	                       parent=None):
-		fileBranch = self.addSetting(name, value, parent=parent)
 
 
 	# sets

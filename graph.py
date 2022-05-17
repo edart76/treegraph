@@ -203,6 +203,7 @@ class Graph(
 		"""in case signal hierarchy is needed -
 		avoid this if possible"""
 
+
 	#region node class processing
 	@property
 	def registeredNodeClasses(self)->Dict[str, type]:
